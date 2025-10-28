@@ -40,25 +40,34 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run noise detection script
-        run: node scripts/detectNoise.js
+      - name: Get changed files
+        id: changed-files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const filenames = files.map(f => f.filename);
+            return filenames;
 
       - name: Detect noise and comment
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            let noiseOutput = '';
-            if (fs.existsSync('noise.txt')) {
-                noiseOutput = fs.readFileSync('noise.txt', 'utf8');
-                if (noiseOutput.includes("⚠️")) {
-                    github.rest.issues.createComment({
-                        issue_number: context.issue.number,
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        body: noiseOutput
-                    });
-                }
-            } else {
-                console.log('noise.txt not found, skipping comment.');
+            const { detectNoiseFiles, formatNoiseOutput } = require('./scripts/detectNoise');
+            
+            const changedFiles = ${{ steps.changed-files.outputs.result }};
+            const noiseFiles = detectNoiseFiles(changedFiles);
+            
+            if (noiseFiles.length > 0) {
+              const output = formatNoiseOutput(noiseFiles, { maxFilesPerDir: 3, groupThreshold: 3 });
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              });
             }
