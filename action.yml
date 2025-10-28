@@ -1,0 +1,26 @@
+name: 'PR Noise Detector'
+description: 'Detects and reports superfluous files in pull requests (debug logs, temp files, IDE configs, etc.)'
+author: 'k00c'
+branding:
+  icon: 'alert-triangle'
+  color: 'yellow'
+
+inputs:
+  github-token:
+    description: 'GitHub token for commenting on PRs'
+    required: true
+    default: ${{ github.token }}
+  ignore-file:
+    description: 'Path to custom ignore patterns file'
+    required: false
+    default: '.pr-noise-ignore'
+
+outputs:
+  noise-found:
+    description: 'Whether noise files were detected (true/false)'
+  noise-files:
+    description: 'JSON array of detected noise files'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
