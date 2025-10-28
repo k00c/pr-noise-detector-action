@@ -62,33 +62,71 @@ jobs:
             const changedFiles = ${{ steps.changed-files.outputs.result }};
             const noiseFiles = detectNoiseFiles(changedFiles);
             
-            // Find and delete previous bot comments
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
+            // Configuration
+            const updateComment = true; // Set to false to always create new comments
             
-            const botComments = comments.filter(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('potentially superfluous files')
-            );
-            
-            for (const comment of botComments) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: comment.id
-              });
-            }
-            
-            // Post new comment if noise found
             if (noiseFiles.length > 0) {
               const output = formatNoiseOutput(noiseFiles, { maxFilesPerDir: 3, groupThreshold: 3 });
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
+              
+              let commentId = null;
+              
+              if (updateComment) {
+                // Find existing comment from this action
+                const { data: comments } = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number
+                });
+                
+                const existingComment = comments.find(comment => 
+                  comment.user.type === 'Bot' && 
+                  comment.body.startsWith('⚠️ Found') &&
+                  comment.body.includes('potentially superfluous files') &&
+                  comment.body.includes('🧹 Consider removing')
+                );
+                
+                if (existingComment) {
+                  commentId = existingComment.id;
+                }
+              }
+              
+              if (commentId) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: commentId,
+                  body: output
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: output
+                });
+              }
+            } else if (updateComment) {
+              // Delete existing comment if no noise found
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: output
+                issue_number: context.issue.number
               });
+              
+              const existingComment = comments.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.startsWith('⚠️ Found') &&
+                comment.body.includes('potentially superfluous files') &&
+                comment.body.includes('🧹 Consider removing')
+              );
+              
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id
+                });
+              }
             }
