@@ -96,7 +96,7 @@ function findNoiseFiles(dir = '.') {
 
 function formatNoiseOutput(noiseFiles) {
     if (noiseFiles.length > 0) {
-        let output = '⚠️ found ' + noiseFiles.length + ' potentially superfluous files:\n';
+        let output = '⚠️ Found ' + noiseFiles.length + ' potentially superfluous files:\n';
         for (const file of noiseFiles) {
             output += `- ${file}\n`;
         }
