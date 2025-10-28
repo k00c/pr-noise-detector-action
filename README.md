@@ -51,6 +51,8 @@ build/*.cache
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for PR comments | Yes | `${{ github.token }}` |
 | `ignore-file` | Path to custom ignore file | No | `.pr-noise-ignore` |
+| `max-files-per-dir` | Max files to show per directory before summarizing | No | `3` |
+| `group-threshold` | Min files in a directory to group them | No | `3` |
 
 ### Outputs
 
@@ -58,6 +60,34 @@ build/*.cache
 |--------|-------------|
 | `noise-found` | Whether noise files were detected |
 | `noise-files` | JSON array of detected files |
+
+## Smart Directory Grouping
+
+When multiple noise files are found in the same directory, they're automatically grouped for better readability:
+
+**Before:**
+```
+⚠️ Found 8 potentially superfluous files:
+- logs/debug1.log
+- logs/debug2.log
+- logs/debug3.log
+- logs/debug4.log
+- logs/debug5.log
+- temp/scratch1.js
+- temp/scratch2.js
+```
+
+**After:**
+```
+⚠️ Found 8 potentially superfluous files:
+- logs/ (5 files: debug1.log, debug2.log, debug3.log... and 2 more)
+- temp/scratch1.js
+- temp/scratch2.js
+```
+
+The grouping behavior can be customized:
+- `group-threshold`: Minimum files needed in a directory to group them (default: 3)
+- `max-files-per-dir`: Maximum files to list before adding "... and X more" (default: 3)
 
 ## What Gets Detected
 

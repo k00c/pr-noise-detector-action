@@ -94,13 +94,80 @@ function findNoiseFiles(dir = '.') {
   return flagged;
 }
 
-function formatNoiseOutput(noiseFiles) {
+function formatNoiseOutput(noiseFiles, options = {}) {
+    const { maxFilesPerDir = 3, groupThreshold = 3 } = options;
+    
     if (noiseFiles.length > 0) {
         let output = '⚠️ Found ' + noiseFiles.length + ' potentially superfluous files:\n';
+        
+        // Group files by directory
+        const filesByDir = {};
+        
         for (const file of noiseFiles) {
-            output += `- ${file}\n`;
+            const normalized = file.replace(/\\/g, '/');
+            const lastSlash = normalized.lastIndexOf('/');
+            const dir = lastSlash >= 0 ? normalized.substring(0, lastSlash) : '.';
+            const filename = lastSlash >= 0 ? normalized.substring(lastSlash + 1) : normalized;
+            
+            if (!filesByDir[dir]) {
+                filesByDir[dir] = [];
+            }
+            filesByDir[dir].push(filename);
         }
+        
+        // Sort directories for consistent output
+        const sortedDirs = Object.keys(filesByDir).sort();
+        
+        let lineCount = 0;
+        const maxLines = 4;
+        let hasMore = false;
+        
+        for (const dir of sortedDirs) {
+            const files = filesByDir[dir];
+            
+            if (files.length >= groupThreshold) {
+                // Group files in this directory - counts as 1 line
+                if (lineCount >= maxLines) {
+                    hasMore = true;
+                    break;
+                }
+                
+                if (files.length <= maxFilesPerDir) {
+                    // Show all files
+                    const fileList = files.sort().join(', ');
+                    const dirDisplay = dir === '.' ? '(root)' : dir + '/';
+                    output += `- ${dirDisplay} (${files.length} files: ${fileList})\n`;
+                } else {
+                    // Show first few files + summary
+                    const sortedFiles = files.sort();
+                    const shownFiles = sortedFiles.slice(0, maxFilesPerDir);
+                    const remainingCount = files.length - maxFilesPerDir;
+                    const fileList = shownFiles.join(', ');
+                    const dirDisplay = dir === '.' ? '(root)' : dir + '/';
+                    output += `- ${dirDisplay} (${files.length} files: ${fileList}... and ${remainingCount} more)\n`;
+                }
+                lineCount++;
+            } else {
+                // Show individual files for small directories - each file is 1 line
+                for (const filename of files.sort()) {
+                    if (lineCount >= maxLines) {
+                        hasMore = true;
+                        break;
+                    }
+                    const fullPath = dir === '.' ? filename : `${dir}/${filename}`;
+                    output += `- ${fullPath}\n`;
+                    lineCount++;
+                }
+                if (hasMore) break;
+            }
+        }
+        
+        if (hasMore) {
+            output += '...\n';
+        }
+        
         output += '\n🧹 Consider removing them if they are not needed.';
+        output += '\n\n---\n*Last updated: ' + new Date().toUTCString() + '*';
         return output;
     } else {
         return '✅ No noise detected.';
@@ -108,7 +175,7 @@ function formatNoiseOutput(noiseFiles) {
 }
 
 const noiseFiles = findNoiseFiles();
-const output = formatNoiseOutput(noiseFiles);
+const output = formatNoiseOutput(noiseFiles, { maxFilesPerDir: 3, groupThreshold: 3 });
 if (noiseFiles.length > 0) {
     console.log('⚠️ Found potentially superfluous files/directories:');
 }

@@ -1,0 +1,132 @@
+name: PR Noise Detector
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run unit tests
+        run: npx jest scripts/detectNoise.test.js
+
+  detect-noise:
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Get changed files
+        id: changed-files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const filenames = files.map(f => f.filename);
+            return filenames;
+
+      - name: Detect noise and comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { detectNoiseFiles, formatNoiseOutput } = require('./scripts/detectNoise');
+            
+            const changedFiles = ${{ steps.changed-files.outputs.result }};
+            const noiseFiles = detectNoiseFiles(changedFiles);
+            
+            // Configuration
+            const updateComment = true; // Set to false to always create new comments
+            
+            if (noiseFiles.length > 0) {
+              const output = formatNoiseOutput(noiseFiles, { maxFilesPerDir: 3, groupThreshold: 3 });
+              
+              let commentId = null;
+              
+              if (updateComment) {
+                // Find existing comment from this action
+                const { data: comments } = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number
+                });
+                
+                const existingComment = comments.findLast(comment => 
+                  comment.user.type === 'Bot' && 
+                  comment.body.startsWith('⚠️ Found') &&
+                  comment.body.includes('potentially superfluous files') &&
+                  comment.body.includes('🧹 Consider removing')
+                );
+                
+                if (existingComment) {
+                  commentId = existingComment.id;
+                }
+              }
+              
+              if (commentId) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: commentId,
+                  body: output
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: output
+                });
+              }
+            } else if (updateComment) {
+              // Delete existing comment if no noise found
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              
+              const existingComment = comments.findLast(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.startsWith('⚠️ Found') &&
+                comment.body.includes('potentially superfluous files') &&
+                comment.body.includes('🧹 Consider removing')
+              );
+              
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id
+                });
+              }
+            }
