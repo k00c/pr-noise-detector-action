@@ -7,6 +7,8 @@ async function run() {
   try {
     const token = core.getInput('github-token');
     const ignoreFile = core.getInput('ignore-file');
+    const maxFilesPerDir = parseInt(core.getInput('max-files-per-dir') || '3');
+    const groupThreshold = parseInt(core.getInput('group-threshold') || '3');
     
     // Detect noise files
     const noiseFiles = findNoiseFiles('.', ignoreFile);
@@ -17,7 +19,7 @@ async function run() {
     
     // Comment on PR if noise found
     if (noiseFiles.length > 0) {
-      const output = formatNoiseOutput(noiseFiles);
+      const output = formatNoiseOutput(noiseFiles, { maxFilesPerDir, groupThreshold });
       
       const octokit = github.getOctokit(token);
       const context = github.context;

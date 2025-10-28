@@ -129,4 +129,77 @@ describe('PR Noise Detector', () => {
     expect(output).toContain('tmp/output.txt');
     expect(output).toContain('.vscode/settings.json');
   });
+
+  test('groups files by directory when above threshold', () => {
+    const noise = [
+      'logs/debug1.log',
+      'logs/debug2.log', 
+      'logs/debug3.log',
+      'logs/debug4.log',
+      'temp/scratch1.js',
+      'temp/scratch2.js',
+      'single.tmp'
+    ];
+    const output = formatNoiseOutput(noise, { maxFilesPerDir: 3, groupThreshold: 3 });
+    
+    expect(output).toContain('⚠️ Found 7 potentially superfluous files:');
+    // logs directory should be grouped (4 files >= threshold of 3)
+    expect(output).toContain('logs/ (4 files: debug1.log, debug2.log, debug3.log... and 1 more)');
+    // temp directory should show individual files (2 files < threshold of 3)
+    expect(output).toContain('temp/scratch1.js');
+    expect(output).toContain('temp/scratch2.js');
+    // root file should show individually
+    expect(output).toContain('single.tmp');
+  });
+
+  test('shows all files when under maxFilesPerDir limit', () => {
+    const noise = [
+      'logs/debug1.log',
+      'logs/debug2.log', 
+      'logs/debug3.log'
+    ];
+    const output = formatNoiseOutput(noise, { maxFilesPerDir: 5, groupThreshold: 3 });
+    
+    expect(output).toContain('logs/ (3 files: debug1.log, debug2.log, debug3.log)');
+    expect(output).not.toContain('... and');
+  });
+
+  test('handles root directory files correctly', () => {
+    const noise = [
+      'debug1.log',
+      'debug2.log',
+      'debug3.log',
+      'debug4.log'
+    ];
+    const output = formatNoiseOutput(noise, { maxFilesPerDir: 2, groupThreshold: 3 });
+    
+    expect(output).toContain('(root) (4 files: debug1.log, debug2.log... and 2 more)');
+  });
+
+  test('respects custom groupThreshold', () => {
+    const noise = [
+      'logs/debug1.log',
+      'logs/debug2.log'
+    ];
+    
+    // With threshold 2, should group
+    let output = formatNoiseOutput(noise, { maxFilesPerDir: 3, groupThreshold: 2 });
+    expect(output).toContain('logs/ (2 files: debug1.log, debug2.log)');
+    
+    // With threshold 3, should show individually
+    output = formatNoiseOutput(noise, { maxFilesPerDir: 3, groupThreshold: 3 });
+    expect(output).toContain('logs/debug1.log');
+    expect(output).toContain('logs/debug2.log');
+  });
+
+  test('handles mixed Windows and Unix paths', () => {
+    const noise = [
+      'logs\\debug1.log',
+      'logs/debug2.log',
+      'logs\\debug3.log'
+    ];
+    const output = formatNoiseOutput(noise, { maxFilesPerDir: 3, groupThreshold: 3 });
+    
+    expect(output).toContain('logs/ (3 files: debug1.log, debug2.log, debug3.log)');
+  });
 });

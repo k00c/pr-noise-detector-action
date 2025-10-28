@@ -14,6 +14,14 @@ inputs:
     description: 'Path to custom ignore patterns file'
     required: false
     default: '.pr-noise-ignore'
+  max-files-per-dir:
+    description: 'Maximum number of files to show per directory before summarizing'
+    required: false
+    default: '3'
+  group-threshold:
+    description: 'Minimum number of files in a directory to group them'
+    required: false
+    default: '3'
 
 outputs:
   noise-found:
