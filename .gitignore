@@ -3,3 +3,5 @@
 /.env
 .DS_Store
 noise.txt
+/coverage
+*.lcov

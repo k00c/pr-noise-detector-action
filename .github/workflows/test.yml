@@ -19,8 +19,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run unit tests
-        run: npx jest scripts/detectNoise.test.js
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
 
   detect-noise:
     runs-on: ubuntu-latest
