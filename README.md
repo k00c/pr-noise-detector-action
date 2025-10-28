@@ -98,6 +98,22 @@ The grouping behavior can be customized:
 - Test outputs (`test-output.*`)
 - And more...
 
+## Development
+
+### Running Tests
+
+```bash
+npm test
+```
+
+### Running Tests with Coverage
+
+```bash
+npm run test:coverage
+```
+
+Current coverage: **91.66%** (statements), **85.18%** (branches)
+
 ## License
 
 MIT

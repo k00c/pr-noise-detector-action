@@ -4,7 +4,8 @@
   "description": "GitHub Action to detect superfluous files in pull requests",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "npx jest",
+    "test:coverage": "npx jest --coverage"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
@@ -12,5 +13,20 @@
   },
   "devDependencies": {
     "jest": "^29.7.0"
+  },
+  "jest": {
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "scripts/**/*.js",
+      "!scripts/**/*.test.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 100,
+        "lines": 90,
+        "statements": 90
+      }
+    }
   }
 }
