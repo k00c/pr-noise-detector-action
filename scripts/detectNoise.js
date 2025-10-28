@@ -118,11 +118,20 @@ function formatNoiseOutput(noiseFiles, options = {}) {
         // Sort directories for consistent output
         const sortedDirs = Object.keys(filesByDir).sort();
         
+        let lineCount = 0;
+        const maxLines = 4;
+        let hasMore = false;
+        
         for (const dir of sortedDirs) {
             const files = filesByDir[dir];
             
             if (files.length >= groupThreshold) {
-                // Group files in this directory
+                // Group files in this directory - counts as 1 line
+                if (lineCount >= maxLines) {
+                    hasMore = true;
+                    break;
+                }
+                
                 if (files.length <= maxFilesPerDir) {
                     // Show all files
                     const fileList = files.sort().join(', ');
@@ -137,16 +146,28 @@ function formatNoiseOutput(noiseFiles, options = {}) {
                     const dirDisplay = dir === '.' ? '(root)' : dir + '/';
                     output += `- ${dirDisplay} (${files.length} files: ${fileList}... and ${remainingCount} more)\n`;
                 }
+                lineCount++;
             } else {
-                // Show individual files for small directories
+                // Show individual files for small directories - each file is 1 line
                 for (const filename of files.sort()) {
+                    if (lineCount >= maxLines) {
+                        hasMore = true;
+                        break;
+                    }
                     const fullPath = dir === '.' ? filename : `${dir}/${filename}`;
                     output += `- ${fullPath}\n`;
+                    lineCount++;
                 }
+                if (hasMore) break;
             }
         }
         
+        if (hasMore) {
+            output += '...\n';
+        }
+        
         output += '\n🧹 Consider removing them if they are not needed.';
+        output += '\n\n---\n*Last updated: ' + new Date().toUTCString() + '*';
         return output;
     } else {
         return '✅ No noise detected.';
